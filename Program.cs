@@ -180,7 +180,7 @@ namespace BlueDolphin.Renewal
 			AND to_days(o.renewal_date) <= to_days(curdate())
 	";
 
-                MySqlCommand command  = new MySqlCommand();
+                MySqlCommand command = new MySqlCommand(string.Empty, myConn);
                 command.CommandText = create_renewal_orders_query_string;
                 command.ExecuteNonQuery();
 
@@ -348,10 +348,117 @@ namespace BlueDolphin.Renewal
 
         private static int create_additional_renewal_invoices()
         {
+            //go through only pending orders, which haven't been sent yet and are in progress
 
             try
             {
-                return 1;
+                int number_of_renewal_invoices_created = 0;
+
+                //rearrange the billing series array so we can pick the next effort
+	            //for($i=0, $n=sizeof($renewals_billing_series_array); $i<$n;$i++) {
+		        //$renewels_billing_series[$renewals_billing_series_array[$i]['renewals_billing_series_id']][$renewals_billing_series_array[$i]['effort_number']] = $renewals_billing_series_array[$i];
+	
+                //rearrange the billing series array so we can pick the next effort
+	                //for($i=0, $n=sizeof($renewals_billing_series_array); $i<$n;$i++) {
+		                //$renewels_billing_series[$renewals_billing_series_array[$i]['renewals_billing_series_id']][$renewals_billing_series_array[$i]['effort_number']] = $renewals_billing_series_array[$i];
+                //	}
+
+                            MySqlCommand command = new MySqlCommand(string.Empty, myConn);
+                            command.CommandText = @"
+		            select *
+		            from renewals_invoices ri,
+			            orders o,
+			            orders_products op,
+			            renewals_billing_series rbs,
+			            skus s,
+			            products p
+		            where ri.orders_id=o.orders_id
+			            and o.orders_id = op.orders_id
+			            and op.skus_id = s.skus_id
+			            and op.products_id = p.products_id
+			            and o.renewals_billing_series_id = rbs.renewals_billing_series_id
+			            and rbs.renewals_billing_series_id = ri.renewals_billing_series_id
+			            and rbs.effort_number = ri.effort_number
+			            and ri.was_sent=1
+			            and ri.in_progress=1
+	            ";
+                command.ExecuteNonQuery();
+
+                MySqlDataReader myReader;
+                myReader = command.ExecuteReader();
+                while (myReader.Read())
+                {
+                   var renewals_invoices_id = myReader["renewals_invoices_id"];
+		           var customers_id = myReader["customers_id"];
+		           var orders_id = myReader["orders_id"];
+		           var renewals_billing_series_id = myReader["renewals_billing_series_id"];
+		           int renewals_billing_series_effort_number = Convert.ToInt32(myReader["effort_number"]);
+		           var  products_id = myReader["products_id"];
+		           var skus_type_order =myReader["skus_type_order"];
+		           var prior_orders_id = myReader["prior_orders_id"];
+		           var renewal_order_status = myReader["orders_status"];
+		           var skus_status = myReader["skus_status"];
+		           var date_sent = myReader["date_sent"];
+		           var continuous_service = myReader["continuous_service"];
+		           var auto_renew = myReader["auto_renew"];
+
+		           bool create_next_effort = true;
+
+		           int next_effort_number = renewals_billing_series_effort_number+1;
+
+                }
+
+                myReader.Close();
+
+                //check to see if the order is still valid for invoice creation, if not then update the invoice
+		//and move on to next order.
+	/*	$check_renewal_order_result = check_renewal_order($skus_type_order, $skus_status, $products_id, $prior_orders_id, $continuous_service, $auto_renew, $renewal_order_status);
+		if ($check_renewal_order_result !== true) {
+			$comment = "Next effort for this invoice was not created because " . $check_renewal_order_result;
+			tep_db_query("update renewals_invoices set in_progress = 0, comments='" . tep_db_input($comment) . "' where renewals_invoices_id = '" . $renewals_invoices_id . "'");
+			continue;
+		}
+
+		//check to see if there is a next effort for this series.
+		if (!isset($renewels_billing_series[$renewals_billing_series_id][$next_effort_number])) {
+			$create_next_effort = false;
+			$comment = "Next effort for this invoice was not created because there are no more efforts for this billing series.";
+		} else {
+			$next_effort_delay = $renewels_billing_series[$renewals_billing_series_id][$next_effort_number]['delay_in_days'];
+			$comment = "Next effort for this invoice was created.";
+		}
+
+		if ($create_next_effort) {
+			//this is where we create the next one.
+			//Let's check to make sure the user hasn't already been entered for the same order
+			//if so the unique index will be violated and an error returned. Using the tep_db_query_return_error version of the
+			// it will allow us to continue. Which is what we want here. We add the delay here.
+			$create_renewal_invoice_query_string = "insert into renewals_invoices (date_to_be_sent, orders_id, customers_id, renewals_billing_series_id, effort_number, in_progress)
+                      values (DATE_ADD(curdate(),INTERVAL " . $next_effort_delay . " DAY), '" . $orders_id . "', '" . $customers_id . "', '" . $renewals_billing_series_id . "', $next_effort_number, '1')";
+
+			$result = tep_db_query_return_error($create_renewal_invoice_query_string);
+
+			//if there was an error let's record that.
+			if (tep_db_query_returned_error()) {
+				log_renewal_process("Warning: create_additional_renewal_invoice tried to insert the same user,same order, same effort (" . $create_renewal_invoice_query_string . ")", $orders_id);
+			}
+			$number_of_renewal_invoices_created++;
+
+		}
+
+		//set this invoice' in_progress to 0. Used for clean up later.
+		if ($create_next_effort) {
+			tep_db_query("update renewals_invoices set in_progress = 0, comments='" . tep_db_input($comment) . "' where renewals_invoices_id = '" . $renewals_invoices_id . "'");
+		} else {
+			//don't set the in_progress to 0 since it is the last effort. We'll clean this one up during
+			//mass cancel,since it is allowed to be active for cancel delay days.
+			tep_db_query("update renewals_invoices set comments='" . tep_db_input($comment) . "' where renewals_invoices_id = '" . $renewals_invoices_id . "'");
+
+		}
+	}*/
+
+
+                return number_of_renewal_invoices_created;
             }
             catch (Exception e)
             {
@@ -408,7 +515,85 @@ namespace BlueDolphin.Renewal
                 // Set our number of processed paper invoices to its default value of zero.
 	            int number_of_renewal_paper_invoices_file_records = 0;
 
+                MySqlCommand command = new MySqlCommand(string.Empty, myConn);
+                command.CommandText = renewal_invoices_info_query_string;
+                command.ExecuteNonQuery();
 
+                MySqlDataReader myReader;
+                myReader = command.ExecuteReader();
+                while (myReader.Read())
+                {
+                   // Pull data form our current renewal invoice.
+	/*	$billing_first_name = $renewal_invoices_info['billing_first_name'];
+		$billing_last_name = $renewal_invoices_info['billing_last_name'];
+		$billing_address_line_1 = $renewal_invoices_info['billing_street_address'];
+		$billing_city = $renewal_invoices_info['billing_city'];
+		$billing_state = $renewal_invoices_info['billing_state'];
+		$billing_postal_code = $renewal_invoices_info['billing_postcode'];
+		$delivery_first_name = $renewal_invoices_info['delivery_first_name'];
+		$delivery_last_name = $renewal_invoices_info['delivery_last_name'];
+		$delivery_address_line_1 = $renewal_invoices_info['delivery_street_address'];
+		$delivery_city = $renewal_invoices_info['delivery_city'];
+		$delivery_state = $renewal_invoices_info['delivery_state'];
+		$delivery_postal_code = $renewal_invoices_info['delivery_postcode'];
+		$renewals_invoices_id = $renewal_invoices_info['renewals_invoices_id'];
+		$customers_id = $renewal_invoices_info['customers_id'];
+		$orders_id = $renewal_invoices_info['orders_id'];
+		$renewals_billing_series_code = $renewal_invoices_info['renewals_billing_series_code'];
+		$products_id = $renewal_invoices_info['products_id'];
+		$skus_type_order =$renewal_invoices_info['skus_type_order'];
+		$prior_orders_id = $renewal_invoices_info['prior_orders_id'];
+		$renewal_order_status = $renewal_invoices_info['orders_status'];
+		$skus_status = $renewal_invoices_info['skus_status'];
+		$products_name = $renewal_invoices_info['products_name'];
+		$skus_term = $renewal_invoices_info['skus_term'];
+		$effort_number = $renewal_invoices_info['effort_number'];
+		$date_purchased = $renewal_invoices_info['date_purchased'];
+		$amount_owed = $renewal_invoices_info['amount_owed'];
+		$amount_paid = $renewal_invoices_info['amount_paid'];
+		$price = $renewal_invoices_info['products_price'];
+		$email_address = $renewal_invoices_info['customers_email_address'];
+		$continuous_service = $renewal_invoices_info['continuous_service'];
+		$auto_renew = $renewal_invoices_info['auto_renew'];
+		$cc_number_display = $renewal_invoices_info['cc_number_display'];
+		$template_directory = $renewal_invoices_info['tplDir'];
+		$skinsites_id = $renewal_invoices_info['skinsites_id'];
+
+		// Check to make sure we can still process this paper invoice.
+		// If not print why and stop processing renewal invoice.
+		$check_renewal_order_result = check_renewal_order($skus_type_order, $skus_status, $products_id, $prior_orders_id, $continuous_service, $auto_renew, $renewal_order_status);
+		if ($check_renewal_order_result !== true) {
+			//set the in_progress to 0. Used for clean up later.
+			$comments = "This paper effort was not created because " . $check_renewal_order_result;
+			tep_db_query("update renewals_invoices set in_progress = 0, comments = '" . $comments . "' where renewals_invoices_id = '" . $renewals_invoices_id . "'");
+			continue;
+		}
+
+		// Insert a new row into our paper invoices file
+		tep_db_query("insert into paper_invoices (customers_id, billing_first_name, billing_last_name, billing_address_line_1, billing_address_line_2, billing_city, billing_state,
+					billing_postal_code, delivery_first_name, delivery_last_name, delivery_address_line_1, delivery_address_line_2, delivery_city, delivery_state,
+					delivery_postal_code, product_name, price, term, effort_number, orders_id, date_purchased, amount_owed, amount_paid, email_address,
+					renewals_billing_series_code, cc_number_display, template_directory, site_id, created_date, modified_date, active)
+					values ('" . $customers_id . "', '" . tep_db_input($billing_first_name) . "', '" . tep_db_input($billing_last_name) . "', '" . tep_db_input($billing_address_line_1) . "', '', '" . tep_db_input($billing_city) . "', '" . $billing_state . "',
+					'" . tep_db_input($billing_postal_code) . "', '" . tep_db_input($delivery_first_name) . "', '" . tep_db_input($delivery_last_name) . "', '" . tep_db_input($delivery_address_line_1) . "', '', '" . tep_db_input($delivery_city) . "', '" . $delivery_state . "',
+					'" . tep_db_input($delivery_postal_code) . "', '" . tep_db_input($products_name) . "', '" . $price . "', '" . $skus_term . "', '" . $effort_number . "', '" . $orders_id . "', '" . $date_purchased . "',
+					'" . $amount_owed . "', '" . $amount_paid . "', '" . $email_address . "', '" . tep_db_input($renewals_billing_series_code) . "', '" . tep_db_input($cc_number_display) . "', '" . tep_db_input($template_directory) . "', '" . $skinsites_id . "', now(), now(), 1)");
+
+		// Increment our number of papaer invoices by one.
+		$number_of_renewal_paper_invoices_file_records++;
+
+		// Update the was_sent flag.
+		tep_db_query("update renewals_invoices
+					  set was_sent=1, date_sent=now()
+					  where renewals_invoices_id='" . $renewals_invoices_id . "'");
+
+		// Update the order's invoices_sent flag.
+		tep_db_query("update orders set renewal_invoices_sent=1 where orders_id='" . $orders_id . "'");
+     * 
+     * */
+                }
+
+                myReader.Close();
 
                 return number_of_renewal_paper_invoices_file_records;
             }
@@ -479,7 +664,7 @@ namespace BlueDolphin.Renewal
             {
                 int number_of_mass_cancelled_orders = 0;
 
-                MySqlCommand command = new MySqlCommand();
+                MySqlCommand command = new MySqlCommand(string.Empty, myConn);
                 command.CommandText = @"select ri.*, o.*, rbs.*
 												from renewals_invoices ri,
 													 orders o,
@@ -516,6 +701,32 @@ namespace BlueDolphin.Renewal
                 Console.WriteLine(e.Message);
                 return DateTime.Now;
                 
+
+            }
+        }
+
+        private static bool check_renewal_order()
+        {
+
+            //If a renewal order is placed, at the time of the sending of email or charging the card,
+            //or getting check, the product and sku could be changed to
+            //inactive. If the product is inactive and there are no renewal sku active at all for that
+            //product then don't send email and don't renew.
+            // if the product is inactive and the skus_id (on orders_products.skus_id on the renewal order
+            // pulled here) is inactive (Matt has changed the price/remit)
+            // then we need to do a quick check to see if there is at least another active for that
+            // product for the same skus_type_order. Fulfillment will take care of the rest.
+
+            try
+            {
+
+                return true;
+            }
+            catch (Exception e)
+            {
+                Console.WriteLine(e.Message);
+                return false;
+
 
             }
         }
