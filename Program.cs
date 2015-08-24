@@ -19,6 +19,77 @@ namespace BlueDolphin.Renewal
     class BlueDolphinRenewal
     {
 
+        // define the database table names used in the project
+        public static string TABLE_ADDRESS_BOOK = "address_book";
+        public static string TABLE_ADDRESS_FORMAT = "address_format";
+        public static string TABLE_BANNERS = "banners";
+        public static string TABLE_BANNERS_HISTORY = "banners_history";
+        public static string TABLE_CATEGORIES = "categories";
+        public static string TABLE_CATEGORIES_DESCRIPTION = "categories_description";
+        public static string TABLE_CONFIGURATION = "configuration";
+        public static string TABLE_CONFIGURATION_GROUP = "configuration_group";
+        public static string TABLE_COUNTER = "counter";
+        public static string TABLE_COUNTER_HISTORY = "counter_history";
+        public static string TABLE_COUNTRIES = "countries";
+        public static string TABLE_CURRENCIES = "currencies";
+        public static string TABLE_CUSTOMERS = "customers";
+        public static string TABLE_CUSTOMERS_BASKET = "customers_basket";
+        public static string TABLE_CUSTOMERS_BASKET_ATTRIBUTES = "customers_basket_attributes";
+        public static string TABLE_CUSTOMERS_INFO = "customers_info";
+        public static string TABLE_LANGUAGES = "languages";
+        public static string TABLE_MANUFACTURERS = "manufacturers";
+        public static string TABLE_MANUFACTURERS_INFO = "manufacturers_info";
+        public static string TABLE_ORDERS = "orders";
+        public static string TABLE_ORDERS_PRODUCTS = "orders_products";
+        public static string TABLE_ORDERS_PRODUCTS_ATTRIBUTES = "orders_products_attributes";
+        public static string TABLE_ORDERS_PRODUCTS_DOWNLOAD = "orders_products_download";
+        public static string TABLE_ORDERS_STATUS = "orders_status";
+        public static string TABLE_ORDERS_STATUS_HISTORY = "orders_status_history";
+        public static string TABLE_ORDERS_TOTAL = "orders_total";
+        public static string TABLE_PRODUCTS = "products";
+        public static string TABLE_PRODUCTS_ATTRIBUTES = "products_attributes";
+        public static string TABLE_PRODUCTS_ATTRIBUTES_DOWNLOAD = "products_attributes_download";
+        public static string TABLE_PRODUCTS_DESCRIPTION = "products_description";
+        public static string TABLE_PRODUCTS_GROUPS = "products_groups"; //Separate Pricing per Customer Mod
+        public static string TABLE_PRODUCTS_NOTIFICATIONS = "products_notifications";
+        public static string TABLE_PRODUCTS_OPTIONS = "products_options";
+        public static string TABLE_PRODUCTS_OPTIONS_VALUES = "products_options_values";
+        public static string TABLE_PRODUCTS_OPTIONS_VALUES_TO_PRODUCTS_OPTIONS = "products_options_values_to_products_options";
+        public static string TABLE_PRODUCTS_TO_CATEGORIES = "products_to_categories";
+        public static string TABLE_REVIEWS = "reviews";
+        public static string TABLE_REVIEWS_DESCRIPTION = "reviews_description";
+        public static string TABLE_SKINSITES = "skinsites";
+        public static string TABLE_SESSIONS = "sessions";
+        public static string TABLE_SPECIALS = "specials";
+        public static string TABLE_TAX_CLASS = "tax_class";
+        public static string TABLE_TAX_RATES = "tax_rates";
+        public static string TABLE_GEO_ZONES = "geo_zones";
+        public static string TABLE_ZONES_TO_GEO_ZONES = "zones_to_geo_zones";
+        public static string TABLE_WHOS_ONLINE = "whos_online";
+        public static string TABLE_ZONES = "zones";
+        public static string TABLE_PAYPALIPN_TXN = "paypalipn_txn"; // PAYPALIPN
+        // Added for Xsell Products Mod
+        public static string TABLE_PRODUCTS_XSELL = "products_xsell";
+        public static string TABLE_TOPICS = "topics";
+        public static string TABLE_CUSTOMERS_TOPICS = "customers_topics";
+        public static string TABLE_CUSTOMERS_TOPICS_HISTORY = "customers_topics_history";
+        public static string TABLE_SKUS = "skus";
+        public static string TABLE_PAYMENT_CARDS = "payment_cards";
+        public static string TABLE_PREMIUMS = "premiums";
+        public static string TABLE_PREMIUMS_DESCRIPTION = "premiums_description";
+        public static string TABLE_CC_TRANSACTIONS = "cc_transactions";
+        public static string TABLE_PRIZE_DRAWING_ENTRIES = "prize_drawing_entries";
+        public static string TABLE_ADMIN = "admin";
+        public static string TABLE_CUSTOMERS_MEMBER_STATUS_HISTORY = "customers_member_status_history";
+        public static string TABLE_FULFILLMENT_BATCH_WEEK = "fulfillment_batch_week";
+        public static string TABLE_FULFILLMENT_BATCH = "fulfillment_batch";
+        public static string TABLE_FULFILLMENT_BATCH_ITEMS = "fulfillment_batch_items";
+        public static string TABLE_FULFILLMENT_STATUS = "fulfillment_status";
+        public static string TABLE_PUBLICATION_FREQUENCY = "publication_frequency";
+        public static string TABLE_CC_TRANSACTIONS_ORDERS = "cc_transactions_orders";
+        public static string TABLE_ORDERS_FULFILLMENT_BATCH_HISTORY = "orders_fulfillment_batch_history";
+
+
         public bool USE_PCONNECT = false; // use persistent connections?
         public string DEFAULT_PENDING_COMMENT = "Renewal Order has been created.";
         public string CHARSET = "iso-8859-1";
@@ -689,18 +760,51 @@ namespace BlueDolphin.Renewal
             }
         }
 
-        private static DateTime get_renewal_date()
+        private static DateTime get_renewal_date(string orders_id)
         {
             try
             {
+                if (orders_id == "")
+                {
+                    
 
+                }
+
+                MySqlCommand command = new MySqlCommand(string.Empty, myConn);
+                command.CommandText = @"select
+			            s.renewal_lead_time as skus_renewal_lead_time,
+			            s.skus_days_spanned,
+			            p.renewal_lead_time as products_renewal_lead_time,
+			            date_format(fbi.date_added, '%Y-%m-%d') as date_paid,
+			            s.skus_type,
+			            o.is_postcard_confirmation
+		            from " +
+			            TABLE_ORDERS + @" o, " +
+			            TABLE_FULFILLMENT_BATCH_ITEMS + @" fbi, " +
+			            TABLE_FULFILLMENT_BATCH + @" fb, " +
+			            TABLE_ORDERS_PRODUCTS + @" op, " +
+			            TABLE_SKUS + @" s, " +
+			            TABLE_PRODUCTS + @" p
+		            where
+			            o.orders_id = op.orders_id
+			            and o.orders_id = fbi.orders_id
+			            and fbi.fulfillment_batch_id = fb.fulfillment_batch_id
+			            and fb.fulfillment_status_id = 1
+			            and op.products_id = p.products_id
+			            and op.skus_id = s.skus_id
+			            and o.orders_id = " + orders_id + @"
+		            order by fbi.date_added desc
+		            limit 1";
+
+                command.ExecuteNonQuery();
+               
                 return DateTime.Now;
             }
             catch (Exception e)
             {
                 Console.WriteLine(e.Message);
                 return DateTime.Now;
-                
+                ;
 
             }
         }
